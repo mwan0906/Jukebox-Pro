@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import db from "#db/client";
 
 export async function createUser(username, password) {
@@ -8,19 +9,11 @@ export async function createUser(username, password) {
     ($1, $2)
   RETURNING *
   `;
+  const hashedPassword = await bcrypt.hash(password, 10);
   const {
     rows: [user],
-  } = await db.query(sql, [username, password]);
+  } = await db.query(sql, [username, hashedPassword]);
   return user;
-}
-
-export async function getUsers() {
-  const sql = `
-  SELECT *
-  FROM users
-  `;
-  const { rows: users } = await db.query(sql);
-  return users;
 }
 
 export async function getUserById(id) {
@@ -32,5 +25,22 @@ export async function getUserById(id) {
   const {
     rows: [user],
   } = await db.query(sql, [id]);
+  return user;
+}
+
+export async function getUserByUsernameAndPassword(username, password) {
+  const sql = `
+  SELECT *
+  FROM users
+  WHERE username = $1
+  `;
+  const {
+    rows: [user],
+  } = await db.query(sql, [username]);
+  if (!user) return null;
+
+  const isValid = await bcrypt.compare(password, user.password);
+  if (!isValid) return null;
+
   return user;
 }
